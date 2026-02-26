@@ -67,6 +67,7 @@ services:
     volumes:
       - ./homepage/config:/app/config
       - ./homepage/config/icons:/app/public/icons
+      - ./homepage/config/images:/app/public/images
       # Host Disk Mounts
       - /mnt/pool01/media:/mnt/media_disk:ro
       - /mnt/pool01/games:/mnt/games_disk:ro

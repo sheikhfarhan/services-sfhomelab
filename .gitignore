@@ -1,0 +1,87 @@
+# --- Secrets (Recursive) ---
+.env
+*.key
+*.pem
+
+# --- Python & MkDocs Build ---
+# MUST ignore virtual environments and compiled HTML sites
+venv/
+site/
+__pycache__/
+
+# --- Universal Directories (Recursive) ---
+# Ignores these folder names anywhere in any stack
+config/
+data/
+logs/
+log/
+cache/
+.cache/
+store/
+html/
+maxmind/
+beszel_agent_data/
+db/
+state/
+auth/
+docker-data/
+arcane-data/
+
+# --- Specific Pattern Directories ---
+*-config/
+*-cache/
+MediaCover/
+# For Beszel/LVM Mapping
+.beszel/
+**/profilarr/config/db/
+
+# --- Large Files & Databases ---
+*.mmdb
+*.db
+*.db-wal
+*.db-shm
+*sqlite
+*.log
+*.tar.gz
+*.zip
+
+# --- System & Misc ---
+.DS_Store
+Thumbs.db
+.Trash-1000
+/lost+found
+
+# --- Service Specific Ignores ---
+speedtest-tracker/
+# Tailscale state persistence
+tailscale/state/
+
+# =======================================================
+# EXCEPTIONS (What we explicitly WANT to track)
+# =======================================================
+
+# --- Homepage (FIXED PATH: Now inside mon-stack) ---
+!mon-stack/homepage/config/
+mon-stack/homepage/config/*
+# Pick exceptions: Allow only these specific files
+!mon-stack/homepage/config/icons/
+!mon-stack/homepage/config/services.yaml
+!mon-stack/homepage/config/settings.yaml
+!mon-stack/homepage/config/widgets.yaml
+
+# --- CrowdSec (Inside gateway-stack) ---
+# We want to track custom acquisition rules
+!gateway-stack/crowdsec/config/
+gateway-stack/crowdsec/config/*
+!gateway-stack/crowdsec/config/acquis.d/
+
+# --- Gluetun Auth (Inside media-stack) ---
+!media-stack/vpn-arr-stack/gluetun/auth/
+media-stack/vpn-arr-stack/gluetun/auth/*
+# Pick exceptions: Allow specific files
+!media-stack/vpn-arr-stack/gluetun/auth/config.toml.example
+
+# --- Environment Variables ---
+# We explicitly WANT to track our example env file for documentation
+!.env.example
+

@@ -1,0 +1,374 @@
+# ----------------------------------------
+# Network Definition - Have already set this up beforehand
+# ----------------------------------------
+networks:
+  dockerapps-net:
+    external: true
+services:
+  ##################################################
+  # 1. GLUETUN (VPN Tunnel)
+  ##################################################
+  gluetun:
+    image: qmcgaw/gluetun
+    container_name: gluetun
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    devices:
+      - /dev/net/tun:/dev/net/tun
+      # This setting ensures IPv6 is enabled INSIDE the container
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=0
+    networks:
+      dockerapps-net:
+        ipv4_address: 172.20.0.11 
+        ipv6_address: fd00:dead:beef:2::11
+    ports:
+      # --- QBITTORRENT PORTS ---
+      - 8080:8080 # qBittorrent Web UI (Host Port: 8080)
+      #- 6881:6881       # QBT P2P Port (TCP) commented since using Airvpn Port Forwarding
+      #- 6881:6881/udp   # QBT P2P Port (UDP) commented using Airvpn Port Forwarding
+      # --- TRANSMISSION PORTS ---
+      - 9091:9091 # Trans Web UI (Host Port: 9091)
+      #- 6882:6882       # Trans P2P Port (TCP) commented since using Airvpn Port Forwarding
+      #- 6882:6882/udp   # Trans P2P Port (UDP) commented since using Airvpn Port Forwarding
+      # --- PROWLARR PORT ---
+      #- 9696:9696 # Prowlarr Web UI
+      # --- FLARESOLVERR PORT ---
+      #- 8191:8191 # FlareSolverr Web UI
+      # --- SPEEDTEST-TRACKER ---
+      #- 8085:80
+    volumes:
+      # personal preference to split the config and auth folder locally. With only ./gluetun:/gluetun will also simply work
+      - ./gluetun/config:/gluetun
+      - ./gluetun/auth:/gluetun/auth:ro
+      - /lib/modules:/lib/modules:ro
+    environment:
+      # --- General Settings
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      # --- VPN Settings
+      - VPN_SERVICE_PROVIDER=airvpn # This one is hardcoded, as it won't change
+      - VPN_TYPE=${VPN_TYPE}
+      - VPN_IPV6=yes
+      # --- WireGuard Settings
+      - WIREGUARD_PRIVATE_KEY=${WIREGUARD_PRIVATE_KEY}
+      - WIREGUARD_PRESHARED_KEY=${WIREGUARD_PRESHARED_KEY}
+      - WIREGUARD_ADDRESSES=${WIREGUARD_ADDRESSES}
+      - SERVER_COUNTRIES=${SERVER_COUNTRIES}
+      #- WIREGUARD_MTU=${WIREGUARD_MTU}
+      # --- Port Forwarding
+      - FIREWALL_VPN_INPUT_PORTS=${AIRVPN_PORT_QBIT},${AIRVPN_PORT_TRANS}
+      # --- Adding below to prevent warning in logs and reduce ram usage
+      - BLOCK_MALICIOUS=off
+      - BLOCK_SURVEILLANCE=off
+      - BLOCK_ADS=off
+      # --- Disables DNS over TLS
+      - DNS_UPSTREAM_RESOLVER_TYPE=plain
+      # --- This maps internally to 1.1.1.1 (Cloudflare) and 8.8.8.8 (Google)
+      - DNS_UPSTREAM_RESOLVERS=cloudflare,google
+      #- LOG_LEVEL=debug
+      # --- CONTROL SERVER SECURITY ---
+      - HTTP_CONTROL_SERVER_LOG=${HTTP_CONTROL_SERVER_LOG}
+      #- HTTP_CONTROL_SERVER_AUTH_DEFAULT_ROLE=${GLUETUN_AUTH_JSON} # commeting this out since pivot to using config.toml
+    restart: unless-stopped
+  ##################################################
+  # 2. QBITTORRENT (Client 1)
+  ##################################################
+  qbittorrent:
+    image: linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    network_mode: service:gluetun
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - WEBUI_PORT=8080 # This is the internal port. It is accessible on 8080 from the Gluetun service network.
+      - WEBUI_HOST=* # Allows other containers to access the Web UI for integration
+    volumes:
+      - ./qbittorrent/config:/config
+      - /mnt/pool01/media:/media
+    healthcheck:
+      test: curl -f --silent --output /dev/null http://localhost:8080 || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+    depends_on:
+      gluetun:
+        condition: service_healthy
+  ##################################################
+  # 3. TRANSMISSION (Client 2)
+  ##################################################
+  transmission:
+    image: linuxserver/transmission:latest
+    container_name: transmission
+    network_mode: service:gluetun
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - USER=${TRANSMISSION_USER} # transmission username
+      - PASS=${TRANSMISSION_PASS} # transmission password
+      - WEBUI_PORT=9091 # Internal Web UI port (must match Gluetun mapping)
+      - PEERPORT=${AIRVPN_PORT_TRANS}
+    volumes:
+      - ./transmission/config:/config
+      - /mnt/pool01/media:/media
+    healthcheck:
+      # We just want to know if the port is open!
+      test: curl -s http://localhost:9091/ || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+    depends_on:
+      gluetun:
+        condition: service_healthy
+  ##################################################
+  # 4. PROWLARR (Indexer Manager)
+  ##################################################
+  prowlarr:
+    image: linuxserver/prowlarr:latest
+    container_name: prowlarr
+    hostname: prowlarr 
+    networks: 
+      dockerapps-net:
+        ipv4_address: 172.20.0.20
+        ipv6_address: fd00:dead:beef:2::20
+    # Forces container to use IPv4 only for outgoing connections
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=1
+    ports:
+      - 9696:9696
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ./prowlarr/config:/config
+    depends_on:
+      flaresolverr:
+        condition: service_healthy
+    restart: unless-stopped
+
+##################################################
+  # 10. JACKETT (Indexer 2) - NEW SERVICE
+  ##################################################
+  jackett:
+    image: linuxserver/jackett:latest
+    container_name: jackett
+    hostname: jackett
+    networks:
+      dockerapps-net: 
+        ipv4_address: 172.20.0.22
+        ipv6_address: fd00:dead:beef:2::22
+    # Forces container to use IPv4 only for outgoing connections
+    #sysctls:
+    #  - net.ipv6.conf.all.disable_ipv6=1
+    ports:
+      - 9117:9117 # default port for the Web UI
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - AUTO_UPDATE=true #optional
+    volumes:
+      - ./jackett/config:/config
+      # This is for .torrent files, good practice
+      - /mnt/pool01/media/downloads/jackett:/downloads
+    #healthcheck:
+    #  test: curl -f --silent --output /dev/null http://localhost:9117/ || exit 1
+    #  interval: 30s
+    #  timeout: 10s
+    #  retries: 3
+    #  start_period: 30s
+    restart: unless-stopped
+    depends_on:
+      flaresolverr:
+        condition: service_healthy
+
+  ##################################################
+  # 5. RADARR (Movie Management)
+  ##################################################
+  radarr:
+    image: linuxserver/radarr:latest
+    container_name: radarr
+    hostname: radarr
+    networks:
+      dockerapps-net:
+        ipv4_address: 172.20.0.13  
+        ipv6_address: fd00:dead:beef:2::13
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ./radarr/config:/config
+      - /mnt/pool01/media:/media
+    ports:
+      - 7878:7878
+    restart: unless-stopped
+    depends_on:
+      qbittorrent:
+        condition: service_healthy
+      transmission:
+        condition: service_healthy
+  ##################################################
+  # 6. SONARR (TV Show Management)
+  ##################################################
+  sonarr:
+    image: linuxserver/sonarr:latest
+    container_name: sonarr
+    hostname: sonarr
+    networks:
+      dockerapps-net:
+        ipv4_address: 172.20.0.14 
+        ipv6_address: fd00:dead:beef:2::14
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ./sonarr/config:/config
+      - /mnt/pool01/media:/media
+    ports:
+      - 8989:8989
+    restart: unless-stopped
+    depends_on:
+      qbittorrent:
+        condition: service_healthy
+      transmission:
+        condition: service_healthy
+  ##################################################
+  # 7. BAZARR (Subtitle/Caption Manager)
+  ##################################################
+  bazarr:
+    image: linuxserver/bazarr:latest
+    container_name: bazarr
+    hostname: bazarr
+    networks:
+      dockerapps-net:
+        ipv4_address: 172.20.0.15
+        ipv6_address: fd00:dead:beef:2::15
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ./bazarr/config:/config
+      - /mnt/pool01/media:/media
+    ports:
+      - 6767:6767
+    restart: unless-stopped
+    depends_on:
+      radarr:
+        condition: service_started
+      sonarr:
+        condition: service_started
+  ##################################################
+  # 8. FLARESOLVERR (Challenge Solver)
+  ##################################################
+  flaresolverr:
+    image: flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    hostname: flaresolverr
+    networks:
+      dockerapps-net:
+        ipv4_address: 172.20.0.21
+        ipv6_address: fd00:dead:beef:2::21
+    ports:
+      - 8191:8191
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - LOG_LEVEL=info
+      - LOG_FILE=/config/flaresolverr.log
+    volumes:
+      - ./flaresolverr/config:/config
+    healthcheck:
+      test: curl -f --silent --output /dev/null http://localhost:8191/ || exit 1
+      interval: 5m        # Check every 5 minutes (Quiet logs)
+      timeout: 10s
+      retries: 3
+      start_period: 20s   # Grace period for slow startup
+      start_interval: 5s  # CRITICAL: Check rapidly (every 5s) during startup so Prowlarr doesn't wait 5 mins
+    restart: unless-stopped   
+  ##################################################
+  # 9. PROFILARR (Quality Settings & Custom Format Syncs)
+  ##################################################
+  profilarr:
+    image: santiagosayshey/profilarr:latest
+    container_name: profilarr
+    hostname: profilarr
+    networks:
+      dockerapps-net:
+        ipv4_address: 172.20.0.19
+        ipv6_address: fd00:dead:beef:2::19
+    ports:
+      - 6868:6868 # Default port for the Web UI
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ./profilarr/config:/config 
+    restart: unless-stopped
+    depends_on:
+      radarr:
+        condition: service_started
+      sonarr:
+        condition: service_started
+  ##################################################
+  # 10. SPEEDTEST TRACKER
+  ##################################################
+#  speedtest-tracker:
+#    image: lscr.io/linuxserver/speedtest-tracker:latest
+#    container_name: speedtest-tracker
+#    # CRITICAL: Route everything through Gluetun
+#    network_mode: service:gluetun
+#    environment:
+#      - PUID=${PUID}
+#      - PGID=${PGID}
+#      - TZ=${TZ}
+#      - APP_KEY=base64:${SPEED_KEY}
+#      - DB_CONNECTION=sqlite
+#      - APP_URL=http://192.168.0.100:8085
+#      # Schedule: Run at minute 0 past every hour (Cron format)
+#      - SPEEDTEST_SCHEDULE=0 * * * *
+#    volumes:
+#      - ./speedtest-tracker:/config
+#    restart: unless-stopped
+#    depends_on:
+#      - gluetun
+
+  ##################################################
+  # 11. RECYCLARR
+  ##################################################
+  #recyclarr:
+  #  image: ghcr.io/recyclarr/recyclarr
+  #  container_name: recyclarr
+  #  hostname: recyclarr
+  #  networks:
+  #    dockerapps-net:
+  #      ipv4_address: 172.20.0.38
+  #      ipv6_address: 2001:db8:abc2::38
+  #  user: 1000:1000
+  #  volumes:
+  #    - ./recyclarr/config:/config
+  #  environment:
+  #    - TZ=${TZ}
+  #    - SONARR_API_KEY=${SONARR_API_KEY}
+  #    - RADARR_API_KEY=${RADARR_API_KEY}
+  #  restart: unless-stopped
+

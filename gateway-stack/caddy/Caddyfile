@@ -1,0 +1,200 @@
+# --- Global Options ---
+{
+    #debug (uncomment this for troubleshooting)
+
+    dynamic_dns {
+        provider cloudflare {env.CLOUDFLARE_API_TOKEN}
+        domains {
+            {$ROOT_DOMAIN} jellyfin requests gotify auth1
+        }
+        # Forcing cloudlfare ddns to not create ipv6 entries in dns records for the subdomains, as it breaks some of our services.
+        #versions ipv4
+    }
+
+    # Caddy x Crowdsec
+    crowdsec {
+        api_url http://crowdsec:8080
+        api_key {env.CROWDSEC_API_KEY}
+        ticker_interval 30s
+    }
+
+    servers {
+        trusted_proxies cloudflare {
+            interval 12h
+            timeout 15s
+        }
+        client_ip_headers Cf-Connecting-Ip X-Forwarded-For
+    }
+
+    # This is for internal caddy startup, processes and warn/error logs
+    log {
+        output file /var/log/caddy/caddy.log {
+            roll_size 10mb
+            roll_keep 5
+        }
+        format json
+    }
+}
+
+# ==============================================================================
+# SNIPPETS (Reusable Logic)
+# ==============================================================================
+
+# 1. LOGGING & INTERNAL BYPASS
+# This snippet handles skipping logs for internal IPs and formatting the rest.
+(logging) {
+    @internal {
+        remote_ip 172.20.0.0/24 192.168.0.0/16 127.0.0.1 fd00:dead:beef:2::/64 ::1
+    }
+    log_skip @internal
+    log {
+        output file /var/log/caddy/access.log {
+            roll_size 10mb
+            roll_keep 5
+        }
+        format json 
+    }
+}
+
+# 2. SECURITY LAYER (Geo-Block + CrowdSec)
+# This snippet blocks all countries instantly (except for SG), then checks CrowdSec.
+(security) {
+    # Block anyone NOT from Singapore
+    @geoblock {
+        not maxmind_geolocation {
+            db_path "/etc/caddy/maxmind/GeoLite2-Country.mmdb"
+            allow_countries SG
+        }
+    }
+    respond @geoblock "Access Denied: Geo-Block Active" 403
+
+    # If they passed Geo-Block, check CrowdSec
+    route {
+        crowdsec
+    }
+}
+
+# --- NEW SNIPPET: Allows SG + UAE ---
+(security_extended) {
+    # Block anyone NOT from Singapore OR UAE
+    @geoblock_extended {
+        not maxmind_geolocation {
+            db_path "/etc/caddy/maxmind/GeoLite2-Country.mmdb"
+            allow_countries SG AE
+        }
+    }
+    respond @geoblock_extended "Access Denied: Geo-Block Active" 403
+
+    # Still keep CrowdSec protection
+    route {
+        crowdsec
+    }
+}
+
+# 3. AUTHENTIK (The Doorman)
+#(authentik) {
+#    forward_auth http://authentik-server:9000 {
+#        uri /outpost.goauthentik.io/auth/caddy
+#        copy_headers X-Authentik-Username X-Authentik-Groups X-Authentik-Email X-Authentik-Name X-Authentik-Uid X-Authentik-Jwt X-Authentik-Meta-Jwks X-Authentik-Meta-Outpost X-Authentik-Meta-Provider X-Authentik-Meta-App X-Authentik-Meta-Version
+#    }
+#}
+
+# 4. VOIDAUTH (The Doorman)
+(voidauth) {
+    forward_auth voidauth:3000 {
+        uri /api/authz/forward-auth
+        copy_headers Remote-User Remote-Groups Remote-Name Remote-Email
+    }
+}
+
+# ==============================================================================
+# SITES
+# ==============================================================================
+
+# 1. JELLYFIN (Media Server)
+jellyfin.{$ROOT_DOMAIN} {
+    tls {
+        dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+        resolvers 1.1.1.1
+    }
+    import logging
+    import security_extended
+
+    reverse_proxy http://jellyfin:8096 {
+        header_up X-Real-IP {remote_host}
+    }
+}
+
+# 2. JELLYSEERR (Requests)
+requests.{$ROOT_DOMAIN} {
+    tls {
+        dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+        resolvers 1.1.1.1
+    }
+    import logging
+    import security_extended
+    
+    # VoidAuth
+    import voidauth
+
+    reverse_proxy http://seerr:5055 {
+        header_up X-Real-IP {remote_host}
+    }
+}
+
+# 3. GOTIFY (Notifications)
+gotify.{$ROOT_DOMAIN} {
+    tls {
+        dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+        resolvers 1.1.1.1
+    }
+    import logging
+    import security
+
+    # 1. Define API paths (These bypass Authentication)
+    # Added /current* to fix the Android App login issue
+    @api {
+        path /message* /application* /client* /stream* /plugin* /current* /version* /static*
+    }
+
+    # 2. IF it is an API call -> Just Proxy (No Auth)
+    handle @api {
+        reverse_proxy http://gotify:80 {
+            header_up X-Real-IP {remote_host}
+        }
+    }
+
+    # 3. IF it is NOT an API call (The Web UI) -> VoidAuth -> Proxy
+    handle {
+        import voidauth
+        reverse_proxy http://gotify:80 {
+            header_up X-Real-IP {remote_host}            
+        }
+    }
+}
+
+# 4. AUTHENTIK (Identity Provider)
+#auth.{$ROOT_DOMAIN} {
+#    tls {
+#        dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+#        resolvers 1.1.1.1
+#    }
+#    # Replace the manual geoblock lines with crowdsec's route, since we have included authentik.yaml into crowdsec's acquisition
+#    import security_extended
+#
+#    reverse_proxy http://authentik-server:9000
+#}
+
+# 5. VOIDAUTH (Identity Provider)
+auth1.{$ROOT_DOMAIN} {
+    tls {
+        dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+        resolvers 1.1.1.1
+    }
+    # Enables writing to /var/log/caddy/access.log for CrowdSec
+    import logging
+    import security_extended
+
+    reverse_proxy voidauth:3000
+
+}

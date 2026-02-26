@@ -1,0 +1,7 @@
+# VoidAuth Monitoring
+# Tails the Docker stdout of the VoidAuth container to catch failed login attempts
+source: docker
+container_name:
+  - voidauth
+labels:
+  type: voidauth

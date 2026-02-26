@@ -1,0 +1,65 @@
+# HEAVYWEIGHTS (The 21GB+ Stuff)
+# The Docker Engine Root (Images, Overlay2, Containers)
+# verified this is ~21GB and can be rebuilt by Docker.
+docker-data/
+
+# Large Media Mounts (Just in case they are symlinked)
+**/media/
+**/movies/
+**/tv/
+**/downloads/
+**/incomplete/
+**/games/
+**/library/
+
+# JUNK & TEMPORARY FILES
+# Global Cache & Logs
+**/cache/
+**/.cache/
+**/logs/
+**/log/
+**/tmp/
+**/*.log
+**/*.tmp
+
+# Specific log files not in folders
+**/log.txt
+**/logs.txt
+
+# --- Specific Pattern Directories ---
+# These catch our specific naming conventions
+**/*-cache/
+**/goaccess/data/**
+
+# Ignore Sonarr/Radarr covers (They are just for Admin UI)
+**/MediaCover/
+**/mediacover/
+
+# Jellyfin Specifics
+**/jellyfin-config/config/cache/
+**/jellyfin-config/config/log/
+**/jellyfin-config/data/transcodes/
+**/jellyfin-config/data/data/subtitles/
+**/jellyfin-config/data/data/attachments/
+**/jellyfin-config/data/metadata/
+
+# CrowdSec (Downloaded Rules)
+# We backup config.yaml/acquis.yaml, but ignore the auto-downloaded rules
+**/crowdsec/config/hub/**
+**/crowdsec/data/**
+
+# Git (Already on GitHub, no need to backup history twice)
+.git/
+.gitignore
+
+# OS Junk
+.DS_Store
+Thumbs.db
+lost+found
+.Trash-1000
+
+# Ignore extracted subtitle caches
+# Keep .srt (text) but ignore .sup/.sub (bitmaps)
+*.sup
+*.sub
+*.idx

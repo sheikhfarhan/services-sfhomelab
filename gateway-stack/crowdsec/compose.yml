@@ -1,0 +1,30 @@
+networks:
+  dockerapps-net:
+    external: true
+
+services:
+  crowdsec:
+    image: crowdsecurity/crowdsec:latest
+    container_name: crowdsec
+    hostname: crowdsec
+    networks:
+      dockerapps-net:
+        ipv4_address: 172.20.0.24
+        ipv6_address: fd00:dead:beef:2::24
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      # ADDED: additional collections and scenarios
+      - COLLECTIONS=crowdsecurity/caddy crowdsecurity/http-cve crowdsecurity/base-http-scenarios crowdsecurity/whitelist-good-actors crowdsecurity/linux LePresidente/jellyfin 
+      - SCENARIOS=crowdsecurity/http-probing LePresidente/jellyfin-bf baudneo/gotify-bf crowdsecurity/http-generic-bf
+    volumes:
+      - ./config:/etc/crowdsec:rw
+      - ./acquis.yaml:/etc/crowdsec/acquis.yaml:ro
+      - /mnt/pool01/homelab/services/gateway-stack/caddy/logs:/var/log/caddy:ro
+      #Mount Jellyfin's Logs - note to add filename log to acquis.yaml too
+      - /mnt/pool01/homelab/services/media-stack/jellyfin/jellyfin-config/log:/var/log/jellyfin:ro
+      - ./data:/var/lib/crowdsec/data/
+      # Added Docker Socket to monitor VoidAuth's instance - not yet configured with Crowdsec
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped

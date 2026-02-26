@@ -1,0 +1,241 @@
+networks:
+  dockerapps-net:
+    external: true
+
+services:
+  ##################################################
+  # 1. DOCKER SOCKET PROXY (The Gatekeeper)
+  ##################################################
+  # This container is the ONLY one that touches the real socket.
+  # All other apps talk to this proxy via TCP.
+  socket-proxy:
+    image: lscr.io/linuxserver/socket-proxy:latest
+    container_name: socket-proxy
+    networks:
+      dockerapps-net:
+        ipv4_address: 172.20.0.28
+        ipv6_address: fd00:dead:beef:2::28
+    environment:
+      # READ ACCESS (Allowed)
+      - CONTAINERS=1
+      - IMAGES=1
+      - INFO=1
+      - NETWORKS=1
+      - EXEC=1
+      - VOLUMES=1
+      - SERVICES=1    # (Optional, good for stack viewing)
+      - TASKS=1       # (Optional)
+      - EVENTS=1      # Critical for real-time updates
+      - PING=1
+      - VERSION=1
+      # WRITE ACCESS (Blocked by Default - "Read Only" Mode)
+      # This prevents Homepage/Portainer/Arcane from creating/deleting containers.
+      # If we need to manage containers via Portainer/Arcane, change POST to 1.
+      - POST=1
+      - DELETE=1
+      - AUTH=0
+      - SECRETS=0
+      - LOG_LEVEL=warning
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+
+  ##################################################
+  # 2. HOMEPAGE (Dashboard)
+  ##################################################
+  homepage:
+    image: ghcr.io/gethomepage/homepage:latest
+    container_name: homepage
+    hostname: homepage
+    networks:
+      dockerapps-net:
+        ipv4_address: 172.20.0.25
+        ipv6_address: fd00:dead:beef:2::25
+    ports:
+      - 3000:3000
+    env_file:
+      - .env
+    environment:
+      - PUID=1000
+      - PGID=958
+      - TZ=${TZ}
+      - HOMEPAGE_ALLOWED_HOSTS=*
+      # Use the Proxy instead of the Socket
+      - DOCKER_HOST=tcp://172.20.0.28:2375
+      # Our services.yaml href's URL can lookup .env file for the root domain
+      - HOMEPAGE_VAR_ROOT_DOMAIN=${HOMEPAGE_VAR_ROOT_DOMAIN}
+    volumes:
+      - ./homepage/config:/app/config
+      - ./homepage/config/icons:/app/public/icons
+      # Host Disk Mounts
+      - /mnt/pool01/media:/mnt/media_disk:ro
+      - /mnt/pool01/games:/mnt/games_disk:ro
+      - /mnt/pool01/library:/mnt/library_disk:ro
+    restart: unless-stopped
+    depends_on:
+      socket-proxy:
+        condition: service_started
+      beszel-hub:
+        condition: service_healthy
+
+  ##################################################
+  # 3. DOZZLE (Log Viewer)
+  ##################################################
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: dozzle
+    hostname: dozzle
+    networks:
+      dockerapps-net:
+        ipv4_address: 172.20.0.26
+        ipv6_address: fd00:dead:beef:2::26
+    ports:
+      - 9090:8080
+    environment:
+      # Use the Proxy
+      - DOCKER_HOST=tcp://socket-proxy:2375
+    restart: unless-stopped
+    depends_on:
+      - socket-proxy
+
+  ##################################################
+  # 4. WUD (Update Notifier)
+  ##################################################
+  wud:
+    image: getwud/wud:latest
+    container_name: wud
+    hostname: wud
+    networks:
+      dockerapps-net:
+        ipv4_address: 172.20.0.27
+        ipv6_address: fd00:dead:beef:2::27
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    ports:
+      - 3001:3000
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - WUD_LOG_LEVEL=info
+      - WUD_WATCHER_LOCAL_HOST=172.20.0.28
+      - WUD_WATCHER_LOCAL_PORT=2375
+      # --- REGISTRIES ---
+      - WUD_REGISTRY_LSCR_LSCR_USERNAME=${GITHUB_USER}
+      - WUD_REGISTRY_LSCR_LSCR_TOKEN=${GITHUB_TOKEN}
+      - WUD_REGISTRY_HUB_PUBLIC_LOGIN=${DOCKERHUB_USER}
+      - WUD_REGISTRY_HUB_PUBLIC_PASSWORD=${DOCKERHUB_TOKEN}
+      #- WUD_REGISTRY_GHCR_GHCR_USERNAME=${GITHUB_USER}
+      #- WUD_REGISTRY_GHCR_GHCR_TOKEN=${GITHUB_TOKEN}
+      - WUD_TRIGGER_GOTIFY_LOCAL_URL=http://gotify:80
+      - WUD_TRIGGER_GOTIFY_LOCAL_TOKEN=${GOTIFY_TOKEN}
+      # Basic Auth
+      - WUD_AUTH_BASIC_SF_USER=${WUD_SFUSER}
+      - WUD_AUTH_BASIC_SF_HASH=${WUD_SFHASH}
+    volumes:
+      - ./wud/store:/store
+    stop_grace_period: 30s
+    restart: unless-stopped
+    depends_on:
+      - socket-proxy
+
+  ##################################################
+  # 5. BESZEL HUB (Monitoring Server)
+  ##################################################
+  beszel-hub:
+    image: henrygd/beszel:latest
+    container_name: beszel-hub
+    hostname: beszel-hub
+    networks:
+      dockerapps-net:
+        ipv4_address: 172.20.0.31
+        ipv6_address: fd00:dead:beef:2::31
+    ports:
+      - 8090:8090
+    environment:
+      - TZ=${TZ}   
+    volumes:
+      - ./beszel/data:/beszel_data
+    healthcheck:
+      # Use the built-in health command provided by the Beszel binary
+      test: ["CMD", "/beszel", "health", "--url", "http://localhost:8090"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  ##################################################
+  # 6. BESZEL AGENT (Metrics Collector)
+  ##################################################
+  beszel-agent:
+    image: henrygd/beszel-agent:latest
+    container_name: beszel-agent
+    hostname: beszel-agent
+    networks:
+      dockerapps-net:
+        ipv4_address: 172.20.0.32
+        ipv6_address: fd00:dead:beef:2::32
+    environment:
+      - TZ=${TZ}   
+      - LISTEN=45876
+      - KEY=${MEDIASVR_PUBLIC_KEY}
+      - TOKEN=${MEDIASVR_TOKEN}
+      - HUB_URL=http://172.20.0.31:8090
+      # Use socket-proxy
+      - DOCKER_HOST=tcp://socket-proxy:2375
+      # Make the MAIN Dashboard Gauge track CachyOS OS
+      - FILESYSTEM=/dev/nvme1n1p2 
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      # CachyOS Root directory - to change accordingly for new system
+      - /:/extra-filesystems/nvme1n1p2__CachyOS:ro
+      # DOCKER APPS (LVM: dm-0) - - to change accordingly for new system
+      - /mnt/pool01/homelab/services/.beszel:/extra-filesystems/dm-0__DockerApps:ro
+      # MEDIA (LVM: dm-2) - - to change accordingly for new system
+      - /mnt/pool01/media/.beszel:/extra-filesystems/dm-2__Media:ro
+      # Library (LVM: dm-3) - - to change accordingly for new system
+      - /mnt/pool01/library/.beszel:/extra-filesystems/dm-3__Library:ro
+      # VM Lab (Crucial SSD)
+      #- /mnt/vm_lab:/extra-filesystems/sda5__VM-Lab-SSD:ro
+      # Optional - listing systemd services
+      - /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket:ro
+    tmpfs:
+      - /var/lib/beszel-agent
+    restart: unless-stopped
+    depends_on:
+      - socket-proxy
+      - beszel-hub
+
+  ##################################################
+  # 7. ARCANE
+  ##################################################
+  arcane:
+    image: ghcr.io/getarcaneapp/arcane:latest
+    container_name: arcane
+    hostname: arcane
+    networks:
+      dockerapps-net:
+        ipv4_address: 172.20.0.17
+        ipv6_address: fd00:dead:beef:2::17
+    ports:
+      - 3552:3552
+    volumes:
+      - ./arcane/arcane-data:/app/data
+    environment:
+      - APP_URL=http://localhost:3552
+      - DOCKER_HOST=tcp://socket-proxy:2375
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - ENCRYPTION_KEY=${ARCANE_KEY}
+      - JWT_SECRET=${ARCANE_JWT_SECRET}
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -fsS http://localhost:3552/api/health >/dev/null || exit 1']
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+    depends_on:
+      - socket-proxy

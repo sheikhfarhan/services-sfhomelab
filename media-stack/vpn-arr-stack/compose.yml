@@ -24,6 +24,7 @@ services:
         ipv4_address: 172.20.0.11 
         ipv6_address: fd00:dead:beef:2::11
     ports:
+      - 8001:8000 # Gluetun Control Server
       # --- QBITTORRENT PORTS ---
       - 8080:8080 # qBittorrent Web UI (Host Port: 8080)
       #- 6881:6881       # QBT P2P Port (TCP) commented since using Airvpn Port Forwarding

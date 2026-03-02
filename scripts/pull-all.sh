@@ -10,8 +10,7 @@ STACKS=(
   "gateway-stack/caddy"
   "gateway-stack/crowdsec"
   "gateway-stack/voidauth"
-  "gateway-stack/tailscale"
-
+ 
   # --- Ops Stack ---
   "ops-stack/gotify"
   "ops-stack/goaccess"

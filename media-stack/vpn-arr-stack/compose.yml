@@ -68,7 +68,7 @@ services:
       # --- Disables DNS over TLS
       - DNS_UPSTREAM_RESOLVER_TYPE=plain
       # --- This maps internally to 1.1.1.1 (Cloudflare) and 8.8.8.8 (Google)
-      - DNS_UPSTREAM_RESOLVERS=cloudflare,google
+      - DNS_UPSTREAM_PLAIN_ADDRESSES=1.1.1.1:53,8.8.8.8:53
       #- LOG_LEVEL=debug
       # --- CONTROL SERVER SECURITY ---
       - HTTP_CONTROL_SERVER_LOG=${HTTP_CONTROL_SERVER_LOG}

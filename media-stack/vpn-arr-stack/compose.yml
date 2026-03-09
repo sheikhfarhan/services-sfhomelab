@@ -89,7 +89,7 @@ services:
       - WEBUI_HOST=* # Allows other containers to access the Web UI for integration
     volumes:
       - ./qbittorrent/config:/config
-      - /mnt/pool01/media:/media
+      - /mnt/crucial500/downloads:/downloads
     healthcheck:
       test: curl -f --silent --output /dev/null http://localhost:8080 || exit 1
       interval: 30s
@@ -117,7 +117,7 @@ services:
       - PEERPORT=${AIRVPN_PORT_TRANS}
     volumes:
       - ./transmission/config:/config
-      - /mnt/pool01/media:/media
+      - /mnt/crucial500/downloads:/downloads
     healthcheck:
       # We just want to know if the port is open!
       test: curl -s http://localhost:9091/ || exit 1
@@ -186,7 +186,7 @@ services:
     volumes:
       - ./jackett/config:/config
       # This is for .torrent files, good practice
-      - /mnt/pool01/media/downloads/jackett:/downloads
+      - /mnt/crucial500/downloads/jackett:/downloads
     #healthcheck:
     #  test: curl -f --silent --output /dev/null http://localhost:9117/ || exit 1
     #  interval: 30s
@@ -215,7 +215,8 @@ services:
       - TZ=${TZ}
     volumes:
       - ./radarr/config:/config
-      - /mnt/pool01/media:/media
+      - /mnt/vault/media:/media
+      - /mnt/crucial500/downloads:/downloads
     ports:
       - 7878:7878
     restart: unless-stopped
@@ -241,7 +242,8 @@ services:
       - TZ=${TZ}
     volumes:
       - ./sonarr/config:/config
-      - /mnt/pool01/media:/media
+      - /mnt/vault/media:/media
+      - /mnt/crucial500/downloads:/downloads
     ports:
       - 8989:8989
     restart: unless-stopped
@@ -267,7 +269,7 @@ services:
       - TZ=${TZ}
     volumes:
       - ./bazarr/config:/config
-      - /mnt/pool01/media:/media
+      - /mnt/vault/media:/media
     ports:
       - 6767:6767
     restart: unless-stopped

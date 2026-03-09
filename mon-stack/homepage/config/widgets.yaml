@@ -19,6 +19,11 @@
      - /mnt/media_disk
 
 - resources:
+    label: Storage - Crucial500 SSD
+    disk:
+     - /mnt/scratch_disk
+
+- resources:
     label: Storage - Games
     disk:
       - /mnt/games_disk

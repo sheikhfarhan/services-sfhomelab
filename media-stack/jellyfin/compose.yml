@@ -27,7 +27,7 @@ services:
     volumes:
       - ./jellyfin-config:/config
       - ./jellyfin-cache:/cache
-      - /mnt/pool01/media:/media
+      - /mnt/vault/media:/media
     tmpfs:
       - /config/data/transcodes
     devices:

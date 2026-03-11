@@ -71,7 +71,7 @@ services:
       - ./homepage/config/icons:/app/public/icons
       - ./homepage/config/images:/app/public/images
       # Host Disk Mounts
-      - /mnt/vault/media:/mnt/media_disk:ro       # <-- NEW: Points to the HDD Vault
+      - /mnt/vault:/mnt/vault_disk:ro             # <-- NEW: Points to the HDD Vault
       - /mnt/crucial500:/mnt/scratch_disk:ro      # <-- NEW: Points to the SSD Scratch Drive
     restart: unless-stopped
     depends_on:

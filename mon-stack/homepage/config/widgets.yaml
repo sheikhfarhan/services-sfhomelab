@@ -14,9 +14,9 @@
       - /
 
 - resources:
-    label: Storage - Media
+    label: Storage - Vault-HDDs
     disk:
-     - /mnt/media_disk
+     - /mnt/vault_disk
 
 - resources:
     label: Storage - Crucial500 SSD

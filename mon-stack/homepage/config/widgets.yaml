@@ -9,9 +9,9 @@
     uptime: true 
 
 - resources:
-    label: Storage - Dockerapps
+    label: Storage - CachyOS
     disk:
-      - /app/config
+      - /
 
 - resources:
     label: Storage - Media
@@ -23,12 +23,4 @@
     disk:
      - /mnt/scratch_disk
 
-- resources:
-    label: Storage - Games
-    disk:
-      - /mnt/games_disk
 
-- resources:
-    label: Storage - Library
-    disk:
-      - /mnt/library_disk

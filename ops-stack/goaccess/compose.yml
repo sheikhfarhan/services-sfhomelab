@@ -21,11 +21,11 @@ services:
       - TZ=${TZ}
     volumes:
       # READ LOGS (Point to Caddy's folder)
-      - /mnt/pool01/homelab/services/gateway-stack/caddy/logs:/var/log/caddy:ro
+      - /home/sfarhan/homelab/services/gateway-stack/caddy/logs:/var/log/caddy:ro
       - ./data:/srv/data
       - ./html:/srv/report
       # MAXMIND (Read from Caddy's folder)
-      - /mnt/pool01/homelab/services/gateway-stack/caddy/maxmind:/srv/maxmind:ro
+      - /home/sfarhan/homelab/services/gateway-stack/caddy/maxmind:/srv/maxmind:ro
     tmpfs:
       - /var/www/goaccess
     command: >

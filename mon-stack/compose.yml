@@ -57,13 +57,15 @@ services:
       - .env
     environment:
       - PUID=1000
-      - PGID=958
+      - PGID=951
       - TZ=${TZ}
       - HOMEPAGE_ALLOWED_HOSTS=*
       # Use the Proxy instead of the Socket
       - DOCKER_HOST=tcp://172.20.0.28:2375
       # Our services.yaml href's URL can lookup .env file for the root domain
       - HOMEPAGE_VAR_ROOT_DOMAIN=${HOMEPAGE_VAR_ROOT_DOMAIN}
+      - HOMEPAGE_VAR_KOPIA_USER=${HOMEPAGE_VAR_KOPIA_USER}
+      - HOMEPAGE_VAR_KOPIA_PASS=${HOMEPAGE_VAR_KOPIA_PASS}
     volumes:
       - ./homepage/config:/app/config
       - ./homepage/config/icons:/app/public/icons
@@ -71,8 +73,6 @@ services:
       # Host Disk Mounts
       - /mnt/vault/media:/mnt/media_disk:ro       # <-- NEW: Points to the HDD Vault
       - /mnt/crucial500:/mnt/scratch_disk:ro      # <-- NEW: Points to the SSD Scratch Drive
-      - /mnt/pool01/games:/mnt/games_disk:ro
-      - /mnt/pool01/library:/mnt/library_disk:ro
     restart: unless-stopped
     depends_on:
       socket-proxy:
@@ -188,19 +188,17 @@ services:
       # Use socket-proxy
       - DOCKER_HOST=tcp://socket-proxy:2375
       # Make the MAIN Dashboard Gauge track CachyOS OS
-      - FILESYSTEM=/dev/nvme1n1p2 
+      - FILESYSTEM=/dev/nvme0n1
     volumes:
       - /etc/localtime:/etc/localtime:ro
       # CachyOS Root directory - to change accordingly for new system
-      - /:/extra-filesystems/nvme1n1p2__CachyOS:ro
-      # DOCKER APPS (LVM: dm-0) - - to change accordingly for new system
-      - /mnt/pool01/homelab/services/.beszel:/extra-filesystems/dm-0__DockerApps:ro
+      - /:/extra-filesystems/nvme0n1__CachyOS:ro
+      # Homelab Folder in System
+      - /home/sfarhan/homelab/services/.beszel:/extra-filesystems/Homelab:ro
       # THE VAULT (HDDs)
       - /mnt/vault/.beszel:/extra-filesystems/vault__HDD_Vault:ro
       # SCRATCH DRIVE (Crucial SSD)
       - /mnt/crucial500/.beszel:/extra-filesystems/sdc__Scratch_SSD:ro
-      # Library (LVM: dm-3) - - to change accordingly for new system
-      - /mnt/pool01/library/.beszel:/extra-filesystems/dm-3__Library:ro
       # Optional - listing systemd services
       - /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket:ro
     tmpfs:

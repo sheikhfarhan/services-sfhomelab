@@ -5,7 +5,7 @@
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
 ![Security](https://img.shields.io/badge/Security-CrowdSec_%2B_VoidAuth-red)
 
-> **"A modular, automated homelab, running a media server on Arch Linux (CachyOS), featuring a split-network security model and atomic-move storage."**
+> **"A modular, automated homelab, running a media server on Arch Linux (CachyOS)"**
 
 > **📚 FULL DOCUMENTATION:** Detailed deployment guides, network architecture, and security policies are hosted on the live wiki at **[docs.sfhomelab.com](https://docs.sfhomelab.com)**.
 
@@ -24,7 +24,7 @@ This is put together in Feb 2026, for the future me when I am ready to move what
 | **CPU** | AMD Ryzen 5 7600X |
 | **RAM** | 32GB DDR5 |
 | **GPU** | Radeon RX 5600 XT (Transcoding) |
-| **Storage** | 2x 1TB NVMe LVM Pool (`/mnt/pool01`) + 500GB Crucial SSD (`/mnt/CrucialBackup`)|
+| **Storage** | 2x 1TB NVMe LVM Pool (`/home/sfarhan`) + 500GB Crucial SSD (`/mnt/CrucialBackup`)|
 | **Network Card** | Marvell AQC113C 10GbE |
 
 ## Quick Navigation
@@ -33,7 +33,7 @@ This is put together in Feb 2026, for the future me when I am ready to move what
 | :--- | :--- | :--- |
 | **🏗️ Global** | **[Deployment Guide](https://docs.sfhomelab.com/01-infra/deployment-guide.md)** | **Start Here.** Zero-to-Hero guide for host OS setup (Docker install, LVM, DNS, Firewall) |
 | | **[Network Architecture](https://docs.sfhomelab.com/01-infra/networking.md)** | Explaining the `custom docker network` vs. `service:gluetun` split-tunnel design |
-| | **[Storage & LVM](https://docs.sfhomelab.com/01-infra/storage.md)** | How the NVMe pool is aggregated and the "Atomic Move" logic |
+| | **[MergerFS & Storage Setup](./01-infra/MergerFS-storage.md)** | MergerFS setup with 2 x 2TB underlying HDDs |
 | | **[Host Firewall](https://docs.sfhomelab.com/01-infra/security-firewall.md)** | The `firewalld` rules creating the "Software VLAN" to block LAN access |
 | | **[Backups](https://docs.sfhomelab.com/01-infra/backups.md)** | Dockerapps Local Mirror/Rsync, Kopia x Cloudflare R2 & OS Rescuezilla |
 | | **[Troubleshooting](https://docs.sfhomelab.com/01-infra/troubleshooting.md)** | "War Stories" log: Solving exit code 137, 401 healthchecks, and race conditions |
@@ -47,7 +47,7 @@ This is put together in Feb 2026, for the future me when I am ready to move what
 | | **[Jellyfin & Seerr](https://docs.sfhomelab.com/03-media/jellyfin-stack.md)** | Setup, hardware transcoding (AMD GPU) and client connectivity |
 | | **[The VPN & *Arr Stack](https://docs.sfhomelab.com/03-media/vpn-arr-automation-stack.md)** | Radarr/Sonarr setup, Prowlarr/Indexers, and Gluetun tunneling |
 | | **[Custom Anime Profiles via Profilarr](https://docs.sfhomelab.com/03-media/profilarr-anime.md)** | Profilarr setup for Anime Grabs |
-| | **[The "Atomic Move" Logic](https://docs.sfhomelab.com/03-media/bonus-info-story-mode.md)** | Technical deep-dive on how hardlinks work in this specific setup |
+| | **[The Tiered Storage Logic](https://docs.sfhomelab.com/03-media/bonus-info-story-mode.md)** | How MergerFS intercepts and routes SSD media ingestion |
 | **📊 Utilities** | **[Overview](https://docs.sfhomelab.com/04-utilities/index.md)** | Overview on the Architecture setup |
 | | **[Monitoring Stack Overview](https://docs.sfhomelab.com/04-utilities/monitoring-stack.md)** | Overview on the Homepage, WUD, Dozzle behind Socket Proxy |
 | | **[Beszel](https://docs.sfhomelab.com/04-utilities/beszel-setup.md)** | Setting up the lightweight agent and mapping LVM metrics. |
@@ -59,21 +59,21 @@ This is put together in Feb 2026, for the future me when I am ready to move what
 
 ## Architecture Highlights
 
-#### The "Two-Zone" Security Model
+### The "Two-Zone" Security Model
 We bypass the default Docker bridge to enforce strict isolation
 
 * **Zone 1 (Trusted):** `172.20.0.0/24`. Static IPs/Internal apps talk here.
 * **Zone 2 (VPN Bubble):** P2P clients (qBit/Transmission) have **zero** IP address. They utilize `network_mode: service:gluetun`, routing 100% of traffic through AirVPN (WireGuard)
 
-#### "Atomic Moves" Filesystem
-* **Concept:** Downloads and Media Library reside on the same LVM Logical Volume (`/mnt/pool01/media`)
-* **Result:** Importing a 50GB file is **instant** and consumes **0 bytes** of extra space via Hardlinks
+### Scratch Disk to Vault
+* **Concept:** Downloads and unpacks hit a dedicated 500GB SSD to absorb heavy random I/O and prevent mechanical drive thrashing.
+* **Result:** Finalized media is sequentially migrated to the unified 4TB MergerFS HDD Vault for long-term, buffer-free storage.
 
-#### Media Automation
+### Media Automation
 * **Pipeline:** Seerr (Request) → Radarr (Monitored) → Prowlarr (Search) → Gluetun-Qbit (Download) → Radarr (Import) | Bazaarr (Substitle) → Jellyfin (Stream) → Gotify (Notify)
 * **Result:** A fully automated experience where content appears automatically after requesting.
 
-#### Security
+### Security
 1.  **Kernel:** `Firewalld` drops all Docker-to-LAN traffic (Software VLAN).
 2.  **Ingress:** Caddy handles SSL & GeoIP blocking (Singapore Only).
 3.  **Behavior:** CrowdSec bans IPs showing aggressive behavior (brute force, scanners).

@@ -1,5 +1,5 @@
 #!/bin/bash
-BASE_DIR="/mnt/pool01/homelab/services"
+BASE_DIR="/home/sfarhan/homelab/services"
 
 echo "--- 🔎 Auto-Discovering and Pulling Stacks ---"
 

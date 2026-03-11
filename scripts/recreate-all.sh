@@ -6,7 +6,7 @@ echo "This will take a few minutes as all containers are rebuilt..."
 echo ""
 
 # Define the absolute path to our stacks
-BASE_DIR="/mnt/pool01/homelab/services"
+BASE_DIR="/home/sfarhan/homelab/services"
 
 # Define Sub-Stack Paths for cleaner code
 GATEWAY="$BASE_DIR/gateway-stack"
@@ -15,7 +15,6 @@ MEDIA="$BASE_DIR/media-stack"
 MON="$BASE_DIR/mon-stack"
 
 # --- Step 1: Core & Security Infrastructure ---
-# Order: Tailscale (Net) -> VoidAuth (Auth) -> CrowdSec (Security) -> Caddy (Ingress)
 
 echo "[1/9] Re-creating VoidAuth (SSO Identity)..."
 cd "$GATEWAY/voidauth" && docker compose up -d --force-recreate

@@ -1,8 +1,3 @@
-# HEAVYWEIGHTS (The 21GB+ Stuff)
-# The Docker Engine Root (Images, Overlay2, Containers)
-# verified this is ~21GB and can be rebuilt by Docker.
-docker-data/
-
 # Large Media Mounts (Just in case they are symlinked)
 **/media/
 **/movies/

@@ -178,16 +178,18 @@
 
     - Kopia:
         icon: kopia.png
-        href: http://172.20.0.33:51515
+        href: http://kopia:51515
         description: Backup Server
         container: kopia
         widget:
           type: kopia
-          url: http://172.20.0.33:51515
-          username: {{HOMEPAGE_VAR_KOPIA_USERNAME_HOST}}
+          url: http://kopia:51515
+          username: {{HOMEPAGE_VAR_KOPIA_USER}}
           password: {{HOMEPAGE_VAR_KOPIA_PASS}}
-          snapshotHost: kopia
-          snapshotPath: /source/homelab/services
+          snapshotHost: cachyos
+          snapshotPath: /data/homelab-services
+
+        
 
     - Tailscale - CachyOS:
         icon: tailscale

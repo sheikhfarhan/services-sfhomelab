@@ -9,7 +9,7 @@ services:
   # 1. GLUETUN (VPN Tunnel)
   ##################################################
   gluetun:
-    image: qmcgaw/gluetun
+    image: qmcgaw/gluetun:v3
     container_name: gluetun
     cap_add:
       - NET_ADMIN

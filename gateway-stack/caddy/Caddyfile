@@ -26,13 +26,10 @@
         client_ip_headers Cf-Connecting-Ip X-Forwarded-For
     }
 
-    # This is for internal caddy startup, processes and warn/error logs
+    # This routes internal Caddy startup/warn/error logs to Dozzle
     log {
-        output file /var/log/caddy/caddy.log {
-            roll_size 10mb
-            roll_keep 5
-        }
-        format json
+        output stdout
+        format console
     }
 }
 

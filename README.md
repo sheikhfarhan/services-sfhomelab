@@ -56,6 +56,8 @@ This is put together in Feb 2026, for the future me when I am ready to move what
 | | **[Gotify](https://docs.sfhomelab.com/04-utilities/gotify.md)** | Self-hosted push notification setup. |
 | **Scripts** | **[Pull-All Images](https://docs.sfhomelab.com/scripts/pull-all.txt)** | Auto-Pull all services' images |
 | | **[Recreate-All](https://docs.sfhomelab.com/scripts/recreate-all.txt)** | Auto `docker compose up -d --force-recreate` for all |
+| | **[Down-All](https://docs.sfhomelab.com/scripts/down-all.txt)** | Auto `docker compose down` for all |
+
 
 ## Architecture Highlights
 

@@ -55,6 +55,7 @@
 
 # 2. SECURITY LAYER (Geo-Block + CrowdSec)
 # This snippet blocks all countries instantly (except for SG), then checks CrowdSec.
+
 (security) {
     # Block anyone NOT from Singapore
     @geoblock {
@@ -71,18 +72,17 @@
     }
 }
 
-# --- NEW SNIPPET: Allows SG + UAE ---
 (security_extended) {
-    # Block anyone NOT from Singapore OR UAE
-    @geoblock_extended {
+    # Block anyone NOT from Singapore
+    @geoblock {
         not maxmind_geolocation {
             db_path "/etc/caddy/maxmind/GeoLite2-Country.mmdb"
             allow_countries SG AE
         }
     }
-    respond @geoblock_extended "Access Denied: Geo-Block Active" 403
+    respond @geoblock "Access Denied: Geo-Block Active" 403
 
-    # Still keep CrowdSec protection
+    # If they passed Geo-Block, check CrowdSec
     route {
         crowdsec
     }

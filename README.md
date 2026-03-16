@@ -9,7 +9,7 @@
 
 > **📚 FULL DOCUMENTATION:** Detailed deployment guides, network architecture, and security policies are hosted on the live wiki at **[docs.sfhomelab.com](https://docs.sfhomelab.com)**.
 
-This repository strictly houses the Docker Compose stacks, environment templates, and automation scripts for the homelab infrastructure.
+This repository strictly houses the Docker Compose stacks, environment templates, and automation scripts for the homelab infrastructure, where it will be relatively easy for me to clone/pull when deploying similar stacks to a new machine.
 
 This is put together in Feb 2026, for the future me when I am ready to move what I have to a `always-on` homelab/server that I am putting together. And if it somehow helps others on their own journey, its awesome too!
 
@@ -24,64 +24,34 @@ This is put together in Feb 2026, for the future me when I am ready to move what
 | **CPU** | AMD Ryzen 5 7600X |
 | **RAM** | 32GB DDR5 |
 | **GPU** | Radeon RX 5600 XT (Transcoding) |
-| **Storage** | 2x 1TB NVMe LVM Pool (`/home/sfarhan`) + 500GB Crucial SSD (`/mnt/CrucialBackup`)|
+| **Storage** | 2x 1TB NVMe + 2 x 2TB HDDs MergerFS Vault + 500GB Crucial SSD as "Scratch" Disk |
 | **Network Card** | Marvell AQC113C 10GbE |
 
-## Quick Navigation
-
-| Category | Topic | Description |
-| :--- | :--- | :--- |
-| **🏗️ Global** | **[Deployment Guide](https://docs.sfhomelab.com/01-infra/deployment-guide.md)** | **Start Here.** Zero-to-Hero guide for host OS setup (Docker install, LVM, DNS, Firewall) |
-| | **[Network Architecture](https://docs.sfhomelab.com/01-infra/networking.md)** | Explaining the `custom docker network` vs. `service:gluetun` split-tunnel design |
-| | **[MergerFS & Storage Setup](./01-infra/MergerFS-storage.md)** | MergerFS setup with 2 x 2TB underlying HDDs |
-| | **[Host Firewall](https://docs.sfhomelab.com/01-infra/security-firewall.md)** | The `firewalld` rules creating the "Software VLAN" to block LAN access |
-| | **[Backups](https://docs.sfhomelab.com/01-infra/backups.md)** | Dockerapps Local Mirror/Rsync, Kopia x Cloudflare R2 & OS Rescuezilla |
-| | **[Troubleshooting](https://docs.sfhomelab.com/01-infra/troubleshooting.md)** | "War Stories" log: Solving exit code 137, 401 healthchecks, and race conditions |
-| **🛡️ Gateway** | **[Overview](https://docs.sfhomelab.com/02-gateway/index.md)** | Overview and Directory setup |
-| | **[Caddy](https://docs.sfhomelab.com/02-gateway/caddy.md)** | Reverse proxy config, GeoIP filtering, and SSL hardening |
-| | **[CrowdSec](https://docs.sfhomelab.com/02-gateway/crowdsec.md)** | IPS configuration, bouncer setup, and acquisition rules |
-| | **[VoidAuth](https://docs.sfhomelab.com/02-gateway/voidauth.md)** | Identity provider setup |
-| | **[Tailscale](https://docs.sfhomelab.com/02-gateway/tailscale.md)** | Setup for remote access |
-| | **[Cloudflare DDNS](https://docs.sfhomelab.com/01-infra/cloudflare-setup.md)** | *Global Doc*: Managing DNS records and API tokens for the proxy. |
-| **🍿 Media** | **[Overview](https://docs.sfhomelab.com/03-media/index.md)** | Overview on the Architecture setup |
-| | **[Jellyfin & Seerr](https://docs.sfhomelab.com/03-media/jellyfin-stack.md)** | Setup, hardware transcoding (AMD GPU) and client connectivity |
-| | **[The VPN & *Arr Stack](https://docs.sfhomelab.com/03-media/vpn-arr-automation-stack.md)** | Radarr/Sonarr setup, Prowlarr/Indexers, and Gluetun tunneling |
-| | **[Custom Anime Profiles via Profilarr](https://docs.sfhomelab.com/03-media/profilarr-anime.md)** | Profilarr setup for Anime Grabs |
-| | **[The Tiered Storage Logic](https://docs.sfhomelab.com/03-media/bonus-info-story-mode.md)** | How MergerFS intercepts and routes SSD media ingestion |
-| **📊 Utilities** | **[Overview](https://docs.sfhomelab.com/04-utilities/index.md)** | Overview on the Architecture setup |
-| | **[Monitoring Stack Overview](https://docs.sfhomelab.com/04-utilities/monitoring-stack.md)** | Overview on the Homepage, WUD, Dozzle behind Socket Proxy |
-| | **[Beszel](https://docs.sfhomelab.com/04-utilities/beszel-setup.md)** | Setting up the lightweight agent and mapping LVM metrics. |
-| | **[Kopia](https://docs.sfhomelab.com/04-utilities/kopia.md)** | Dedup snapshot strategy to Cloudflare R2. |
-| | **[GoAccess](https://docs.sfhomelab.com/04-utilities/goaccess.md)** | Real-time visual web log analyzer for Caddy. |
-| | **[Gotify](https://docs.sfhomelab.com/04-utilities/gotify.md)** | Self-hosted push notification setup. |
-| **Scripts** | **[Pull-All Images](https://docs.sfhomelab.com/scripts/pull-all.txt)** | Auto-Pull all services' images |
-| | **[Recreate-All](https://docs.sfhomelab.com/scripts/recreate-all.txt)** | Auto `docker compose up -d --force-recreate` for all |
-| | **[Down-All](https://docs.sfhomelab.com/scripts/down-all.txt)** | Auto `docker compose down` for all |
-
-
-## Architecture Highlights
+## Architecture Highlights for Media Server
 
 ### The "Two-Zone" Security Model
-We bypass the default Docker bridge to enforce strict isolation
+We bypass the default Docker bridge to enforce isolation.
 
-* **Zone 1 (Trusted):** `172.20.0.0/24`. Static IPs/Internal apps talk here.
+* **Zone 1:** `172.20.0.0/24`. Static Docker IPs/Internal apps talk here.
 * **Zone 2 (VPN Bubble):** P2P clients (qBit/Transmission) have **zero** IP address. They utilize `network_mode: service:gluetun`, routing 100% of traffic through AirVPN (WireGuard)
 
 ### Scratch Disk to Vault
 * **Concept:** Downloads and unpacks hit a dedicated 500GB SSD to absorb heavy random I/O and prevent mechanical drive thrashing.
 * **Result:** Finalized media is sequentially migrated to the unified 4TB MergerFS HDD Vault for long-term, buffer-free storage.
 
-### Media Automation
+### Zero-Touch Automation
 * **Pipeline:** Seerr (Request) → Radarr (Monitored) → Prowlarr (Search) → Gluetun-Qbit (Download) → Radarr (Import) | Bazaarr (Substitle) → Jellyfin (Stream) → Gotify (Notify)
 * **Result:** A fully automated experience where content appears automatically after requesting.
 
-### Security
+### Defense-in-Depth
 1.  **Kernel:** `Firewalld` drops all Docker-to-LAN traffic (Software VLAN).
 2.  **Ingress:** Caddy handles SSL & GeoIP blocking (Singapore Only).
 3.  **Behavior:** CrowdSec bans IPs showing aggressive behavior (brute force, scanners).
 4.  **Identity:** VoidAuth enforces authentication for selected publicly exposed services/containers
 
-## Tech Stack / Tools /Services
+---
+
+## Tech Stack / Tools
 
 | Logo | Name | Description |
 | :--- | :--- | :--- |
@@ -89,11 +59,11 @@ We bypass the default Docker bridge to enforce strict isolation
 | <img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/docker.png" alt="Docker" width='30'/> | **[Docker](https://www.docker.com/)** | **Runtime.** Containerization engine for isolating application services. |
 | <img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/caddy.png" alt="Caddy" width='30'/> | **[Caddy](https://caddyserver.com/)** | **Ingress.** Secure reverse proxy with automatic HTTPS and GeoIP filtering. |
 | <img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/crowdsec.png" alt="CrowdSec" width='30'/> | **[CrowdSec](https://www.crowdsec.net/)** | **Security.** Collaborative IPS detecting and blocking aggressive IP behaviors. |
-| <img src="https://cdn.jsdelivr.net/gh/selfhst/icons@main/webp/voidauth.webp" alt="VoidAuth" width='30'/> | **[VoidAuth](https://github.com/void-auth/void)** | **Identity.** Lightweight OIDC provider handling Single Sign-On (SSO). |
+| <img src="https://raw.githubusercontent.com/voidauth/voidauth/refs/heads/main/docs/logo.svg" alt="VoidAuth" width='30'/> | **[VoidAuth](https://github.com/void-auth/void)** | **Identity.** Lightweight OIDC provider handling Single Sign-On (SSO). |
 | <img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/gluetun.png" alt="Gluetun" width='30'/> | **[Gluetun](https://github.com/qdm12/gluetun)** | **VPN Tunnel.** AirVPN (WireGuard) client acting as a sidecar for secure downloads. |
-| <img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/tailscale.png" alt="Tailscale" width='30'/> | **[Tailscale](https://tailscale.com/)** | **Mesh Network.** Zero-config VPN for secure remote access and management. |
+| <img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/tailscale.png" alt="Tailscale" width='30'/> | **[Tailscale](https://tailscale.com/)** | **Mesh Network.** Remote access and Intra-Server Mesh Management. |
 | <img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/jellyfin.png" alt="Jellyfin" width='30'/> | **[Jellyfin](https://jellyfin.org/)** | **Media Server.** Streaming server. |
-| <img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/jellyseerr.png" alt="Jellyseerr" width='30'/> | **[Seerr](https://github.com/seerr-team/seerr)** | **Requests.** "Netflix-style" frontend for automated content discovery. |
+| <img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/seerr.png" alt="Seerr" width='30'/> | **[Seerr](https://github.com/seerr-team/seerr)** | **Requests.** Frontend for automated content discovery. |
 | <img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/radarr.png" alt="Radarr" width='30'/> | **[Radarr](https://radarr.video/)** | **Automation.** Movie collection manager and downloader integration. |
 | <img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/sonarr.png" alt="Sonarr" width='30'/> | **[Sonarr](https://sonarr.tv/)** | **Automation.** TV Series management and calendar automation. |
 | <img src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/profilarr.png" alt="Profilarr" width='30'/> | **[Profilarr](https://github.com/Dictionarry-Hub/profilarr)** | **Management.** Synchronizes quality profiles across *Arr applications. |
@@ -113,7 +83,7 @@ We bypass the default Docker bridge to enforce strict isolation
 
 </br>
 
-> **📚 FULL DOCUMENTATION:** Detailed deployment guides, network architecture, and security policies are hosted on the live wiki at **[docs.sfhomelab.com](https://docs.sfhomelab.com)**.
+**📚 FULL DOCUMENTATION:** Detailed deployment guides, network architecture, and security policies are hosted on the live wiki at **[docs.sfhomelab.com](https://docs.sfhomelab.com)**.
 
 ## 📸 Gallery
 

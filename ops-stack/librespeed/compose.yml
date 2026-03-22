@@ -1,0 +1,22 @@
+networks:
+  dockerapps-net:
+    external: true
+    
+services:
+  librespeed:
+    image: lscr.io/linuxserver/librespeed:latest
+    container_name: librespeed
+    networks:
+      dockerapps-net:
+        ipv4_address: 172.20.0.34
+        ipv6_address: fd00:dead:beef:2::34
+    restart: unless-stopped
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - PASSWORD=${LIBRESPEED_PWD}  # Password to view the results database later
+    ports:
+      - 8888:80  # This matches our VPS Caddyfile proxy
+    volumes:
+      - ./config:/config

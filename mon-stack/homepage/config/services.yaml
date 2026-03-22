@@ -227,6 +227,6 @@
 
     - VoidAuth:
         icon: /icons/voidauth.png
-        href: https://auth1.{{HOMEPAGE_VAR_ROOT_DOMAIN}}
+        href: https://auth2.{{HOMEPAGE_VAR_ROOT_DOMAIN}}
         description: Authentication
         container: voidauth

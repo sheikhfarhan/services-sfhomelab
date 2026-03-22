@@ -26,8 +26,15 @@
         client_ip_headers Cf-Connecting-Ip X-Forwarded-For
     }
 
-    # This routes internal Caddy startup/warn/error logs to a file, EXCLUDING traffic logs
+    # 1. This sends system logs to Docker/Dozzle (Console)
     log default {
+        output stdout
+        format console
+        exclude http.log.access
+    }
+
+    # 2. This sends a duplicate of the system logs to a File (for terminal viewing/tailing)
+    log system_file {
         output file /var/log/caddy/caddy.log {
             roll_size 10mb
             roll_keep 5

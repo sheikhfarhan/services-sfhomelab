@@ -115,21 +115,33 @@
           password: {{HOMEPAGE_VAR_QBIT_PASS}}
 
 - Management:
+    - Arcane:
+        icon: arcane.png
+        href: http://localhost:3552
+        description: Container Management
+        container: arcane
+        widget:
+          type: arcane
+          url: http://arcane:3552
+          env: 0 # required, 0 is Arcane default local environment
+          key: {{HOMEPAGE_VAR_ARCANE_API_KEY}}
+          fields: ["running", "stopped", "total", "image_updates"]
+    
     - Gotify:
         icon: gotify.png
-        href: http://172.20.0.16:80
+        href: https://gotify.{{HOMEPAGE_VAR_ROOT_DOMAIN}}
         description: Notifications
         container: gotify
         widget:
           type: gotify
-          url: http://172.20.0.16:80
+          url: https://gotify.{{HOMEPAGE_VAR_ROOT_DOMAIN}}
           key: {{HOMEPAGE_VAR_GOTIFY_KEY}}
 
-    - Caddy:
-        icon: caddy.png
-        #href: http://172.20.0.23
-        description: Reverse Proxy
-        container: caddy
+    #- Caddy:
+    #    icon: caddy.png
+    #    #href: http://172.20.0.23
+    #    description: Reverse Proxy
+    #    container: caddy
         
     - CrowdSec:
         icon: crowdsec.png
@@ -178,7 +190,7 @@
 
     - Kopia:
         icon: kopia.png
-        href: http://kopia:51515
+        href: http://172.20.0.33:51515
         description: Backup Server
         container: kopia
         widget:
@@ -188,8 +200,6 @@
           password: {{HOMEPAGE_VAR_KOPIA_PASS}}
           snapshotHost: cachyos
           snapshotPath: /data/homelab-services
-
-        
 
     - Tailscale - CachyOS:
         icon: tailscale
@@ -228,5 +238,3 @@
     - VoidAuth:
         icon: /icons/voidauth.png
         href: https://auth2.{{HOMEPAGE_VAR_ROOT_DOMAIN}}
-        description: Authentication
-        container: voidauth

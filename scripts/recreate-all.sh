@@ -19,14 +19,14 @@ MON="$BASE_DIR/mon-stack"
 echo "[1/9] Re-creating VoidAuth (SSO Identity)..."
 cd "$GATEWAY/voidauth" && docker compose up -d --force-recreate
 
-echo "[2/9] Re-creating Gotify (Notifications)..."
-cd "$OPS/gotify" && docker compose up -d --force-recreate
+#echo "[2/9] Re-creating Gotify (Notifications)..."
+#cd "$OPS/gotify" && docker compose up -d --force-recreate
 
 echo "[3/9] Re-creating CrowdSec (Security Brain)..."
 cd "$GATEWAY/crowdsec" && docker compose up -d --force-recreate
 
-echo "[4/9] Re-creating Caddy (Reverse Proxy)..."
-cd "$GATEWAY/caddy" && docker compose up -d --force-recreate
+#echo "[4/9] Re-creating Caddy (Reverse Proxy)..."
+#cd "$GATEWAY/caddy" && docker compose up -d --force-recreate
 
 # --- Step 2: Monitoring & Management ---
 # We do this early so the Socket Proxy is ready if other apps need it

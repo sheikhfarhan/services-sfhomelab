@@ -21,7 +21,7 @@ services:
     volumes:
       - ./config:/etc/crowdsec:rw
       - ./acquis.yaml:/etc/crowdsec/acquis.yaml:ro
-      - /home/sfarhan/homelab/services/gateway-stack/caddy/logs:/var/log/caddy:ro
+      #- /home/sfarhan/homelab/services/gateway-stack/caddy/logs:/var/log/caddy:ro
       #Mount Jellyfin's Logs - note to add filename log to acquis.yaml too
       - /home/sfarhan/homelab/services/media-stack/jellyfin/jellyfin-config/log:/var/log/jellyfin:ro
       - ./data:/var/lib/crowdsec/data/

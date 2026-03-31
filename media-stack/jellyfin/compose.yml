@@ -9,7 +9,7 @@ services:
   # 1. JELLYFIN (Media Server)
   ##################################################
   jellyfin:
-    image: linuxserver/jellyfin:latest
+    image: lscr.io/linuxserver/jellyfin:latest
     container_name: jellyfin
     hostname: jellyfin
     group_add:

@@ -71,9 +71,9 @@ mon-stack/homepage/config/*
 
 # --- CrowdSec (Inside gateway-stack) ---
 # We want to track custom acquisition rules
-!gateway-stack/crowdsec/config/
-gateway-stack/crowdsec/config/*
-!gateway-stack/crowdsec/config/acquis.d/
+#!gateway-stack/crowdsec/config/
+#gateway-stack/crowdsec/config/*
+#!gateway-stack/crowdsec/config/acquis.d/
 
 # --- Gluetun Auth (Inside media-stack) ---
 !media-stack/vpn-arr-stack/gluetun/auth/

@@ -7,13 +7,9 @@ BASE_DIR="/home/sfarhan/homelab/services"
 # Updated to match our folders' structure
 STACKS=(
   # --- Gateway Stack ---
-  "gateway-stack/caddy"
   "gateway-stack/crowdsec"
-  "gateway-stack/voidauth"
  
   # --- Ops Stack ---
-  "ops-stack/gotify"
-  "ops-stack/goaccess"
   "ops-stack/kopia"
 
   # --- Media Stack ---

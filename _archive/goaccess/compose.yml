@@ -47,6 +47,9 @@ services:
       --exclude-ip=fd00:dead:beef:1::/64
       --exclude-ip=::1
       --ignore-crawlers
+    labels:
+      - 'wud.tag.include=latest'
+      - 'wud.watch.digest=true'
     restart: unless-stopped
 
 # 2. The Web Server (Frontend)

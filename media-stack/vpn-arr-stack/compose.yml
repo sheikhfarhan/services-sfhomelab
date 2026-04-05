@@ -325,7 +325,7 @@ services:
       - PGID=${PGID}
       - TZ=${TZ}
     volumes:
-      - ./profilarr/config:/config 
+      - ./profilarr/config:/config
     restart: unless-stopped
     depends_on:
       radarr:
